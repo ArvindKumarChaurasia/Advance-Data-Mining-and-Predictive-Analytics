@@ -1,0 +1,112 @@
+---
+title: "Arvind Chaurasia ADM&PA Assignment 3"
+output: html_document
+date: "2024-05-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Part B**
+
+This part of the assignment involves building SVM and neural network regression models to answer a number of questions. We will use the Carseats dataset that is part of the ISLR package (you need to install and load the library). We may also need the following packages: caret, dplyr and glmnet.
+
+Let’s start by loading these libraries:
+
+```{r}
+suppressMessages({
+  library(ISLR)
+  library(dplyr)
+  library(glmnet)
+  library(caret)
+})
+```
+
+For this assignment, we only need the following attributes: "Sales", "Price", "Advertising", "Population",
+"Age", "Income" and "Education". The goal of the assignment is to build models to predict the sales of the
+carseats (“Sales” attribute) using the other attributes.
+
+We can use the dplyr select function to select these attributes.
+
+```{r}
+Carseats_Filtered <- Carseats %>% select("Sales", "Price", "Advertising","Population","Age","Income","Education")
+```
+
+*QB1. Build a linear SVM regression model to predict Sales based on all other attributes ("Price", "Advertising", "Population", "Age", "Income" and "Education"). Hint: use caret train() with method set to “svmLinear”. What is the R-squared of the model?*
+
+```{r}
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+set.seed(2018)
+
+svm_linear_model <- train(Sales ~ ., data = Carseats_Filtered, method = "svmLinear",
+                          trControl = trctrl,
+                          preProcess = c("center", "scale"))
+svm_linear_model
+
+```
+The R Squared value for this model is 0.36.
+
+*QB2. Customize the search grid by checking the model’s performance for C parameter of 0.1,.5,1 and 10 using 2 repeats of 5-fold cross validation.*
+
+```{r}
+c_values <- c(0.1, 0.5, 1, 10)
+
+svm_linear_grid <- expand.grid(C = c_values)
+
+trctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 2)
+
+set.seed(2018)
+
+svm_linear_model <- train(Sales ~ ., data = Carseats_Filtered, method = "svmLinear",
+trControl = trctrl,
+preProcess = c("center", "scale"),
+tuneGrid = svm_linear_grid)
+
+cat("Best value for C is", svm_linear_model$bestTune$C, "\n")
+```
+
+*QB3 Train a neural network model to predict Sales based on all other attributes ("Price", "Advertising", "Population", "Age", "Income" and "Education"). Hint: use caret train() with method set to “nnet”. What is the R-square of the model with the best hyper parameters (using default caret search grid) – hint: don’t forget to scale the data.*
+```{r}
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+set.seed(2018)
+
+nn_model <- train(Sales ~ ., 
+                  data = Carseats_Filtered, 
+                  method = "nnet",
+                  trControl = trctrl,
+                  preProcess = c("center", "scale"))
+
+print(nn_model)
+
+rsquared <- nn_model$results$Rsquared[which.max(nn_model$results$Rsquared)]
+rsquared
+```
+
+*QB4 Consider the following input:
+• Sales=9
+• Price=6.54
+• Population=124
+• Advertising=0
+• Age=76
+• Income= 110
+• Education=10
+What will be the estimated Sales for this record using the above neuralnet model?*
+```{r}
+new_data <- data.frame(
+  Sales =9,
+  Price = 6.54,
+  Population = 124,
+  Advertising = 0,
+  Age = 76,
+  Income = 110,
+  Education = 10
+)
+
+#Lets predict the value of sales usinf neural network 
+estimated_sales <- predict(nn_model, newdata = new_data)
+estimated_sales
+
+```
+
