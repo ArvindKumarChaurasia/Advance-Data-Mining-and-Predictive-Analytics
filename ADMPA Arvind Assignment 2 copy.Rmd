@@ -1,0 +1,209 @@
+---
+title: "Advanced Data Mining and Predictive Analytics Assignement 2"
+output: html_document
+date: "2024-04-06"
+---
+***By: Arvind Chaurasia***
+
+*QA4. Consider the following Table that classifies some objects into two classes of edible (+) and non- edible (-), based on some characteristics such as the object color, size and shape. What would be the Information gain for splitting the dataset based on the “Size” attribute?*
+
+```{r}
+#Firstly we will download and call the package. 
+#install.packages("infotheo")
+library(infotheo)
+
+# Then we created the data frame based on the data provided in the question. 
+DS <- data.frame(Color = c("Yello", "Yellow", "Green", "Green", "Yellow", "Yellow", "Yellow", "Yellow", "Green", "Yellow", "Yellow", "Yellow", "Yellow", "Yellow", "Yellow", "Yellow"), 
+
+Size = c("Small", "Small", "Small", "Large", "Large", "Small", "Small", "Small", "Small", "Large", "Large", "Large", "Large", "Large", "Small", "Large"), 
+
+Shape = c("Round", "Round", "Irregular", "Irregular", "Round", "Round", "Round", "Round", "Round", "Round","Round","Round","Round","Round","Irregular", "Irregular" ),
+
+Edible = c("++", "--", "++", "--", "++", "++", "++", "++", "--", "--", "++", "--", "--", "--", "++", "++"))
+
+```
+
+Now let's do step by step information gain for the Information gain for splitting the dataset based on the “Size” attribute. 
+```{r}
+# Function to calculate entropy
+entropy <- function(p) {
+  if (p == 0 || p == 1) {
+    return(0)
+  }
+  return(-p * log2(p) - (1 - p) * log2(1 - p))
+}
+
+# Function to calculate information gain
+Info_Gain <- function(total_entropy, weights, subsets_entropy) {
+  return(total_entropy - sum(weights * subsets_entropy))
+}
+
+# Function to calculate entropy for a variable
+calculate_entropy <- function(DS, variable) {
+  levels <- unique(DS[[variable]])
+  proportions <- table(DS[[variable]]) / length(DS[[variable]])
+  entropies <- sapply(proportions, entropy)
+  return(sum(proportions * entropies))
+}
+
+# Calculate total entropy
+total_entropy <- calculate_entropy(DS, "Edible")
+
+# Calculate weights for subsets
+weights <- table(DS$Size) / nrow(DS)
+
+# Calculate entropy for subsets
+subsets_entropy <- sapply(unique(DS$Size), function(size_level) {
+  subset_data <- DS[DS$Size == size_level, ]
+  return(calculate_entropy(subset_data, "Edible"))
+})
+
+# Calculate information gain for the Size attribute
+InfoGainSize <- Info_Gain(total_entropy, weights, subsets_entropy)
+cat("The Information gain for splitting the dataset based on the “Size” attribute is", InfoGainSize, "\n")
+```
+
+Answer: The Information gain for splitting the dataset based on the “Size” attribute is 0.105. Information gain tells us how important a given attribute of the feature vectors is. 
+
+___
+
+
+**Part B** 
+
+This part of the assignment involves building decision tree and random forest models to answer a number of questions. We will use the Carseats dataset that is part of the ISLR package (you need to install and load the library). We may also need the following packages: caret, dplyr and glmnet.
+
+Let’s start by loading these libraries:
+
+```{r}
+suppressMessages({
+library(ISLR)
+library(dplyr)
+library(glmnet)
+library(caret)
+})
+```
+
+For this assignment, we only need the following attributes: "Sales", "Price", "Advertising", "Population", "Age", "Income" and "Education". The goal of the assignment is to build models to predict the sales of the carseats (“Sales” attribute) using the other attributes.
+
+We can use the dplyr select function to select these attributes.
+
+```{r}
+Carseats_Filtered <- Carseats %>% select("Sales", "Price", "Advertising","Population","Age","Income","Education")
+```
+
+
+*QB1. Build a decision tree regression model to predict Sales based on all other attributes ("Price", "Advertising", "Population", "Age", "Income" and "Education"). Which attribute is used at the top of the tree (the root node) for splitting? Hint: you can either plot () and text() functions or use the summary() function to see the decision tree rules.*
+
+Let's start with loading libraries. 
+```{r}
+library(rpart)
+library(rpart.plot)
+```
+Let's do some basic data exploaration
+```{r}
+data = Carseats_Filtered
+head(data)
+str(data)
+```
+Now let us build our model
+```{r}
+Model1 = rpart(Sales ~., data = data, method = 'anova')
+summary(Model1)
+```
+Lets plot our tree
+```{r}
+library(rattle)
+fancyRpartPlot(Model1)
+```
+
+So the 'price' attribute was used at the top of the tree for the split. 
+
+*QB2.Consider the following input: • Sales=9 • Price=6.54 • Population=124 • Advertising=0 • Age=76 • Income= 110 • Education=10 What will be the estimated Sales for this record using the decision tree model?*
+
+Let's use the data provided in the question
+```{r}
+data_of_q2 <- data.frame(
+Price = 6.54,
+Population = 124,
+Advertising = 0,
+Age = 76,
+Income = 110,
+Education = 10
+)
+```
+
+Now let's use our model to predict sale. 
+```{r}
+# Predict Sales using the model
+predicted_sales <- predict(Model1, newdata = data_of_q2)
+
+# View the predicted sales
+cat("The estimated Sales for this record using the decision tree model is", predicted_sales)
+```
+
+*QB3. Use the caret function to train a random forest (method=’rf’) for the same dataset. Use the caret default settings. By default, caret will examine the “mtry” values of 2,4, and 6. Recall that mtry is the number of attributes available for splitting at each splitting node. Which mtry value gives the best performance? (Make sure to set the random number generator seed to 123)*
+
+```{r}
+# Load necessary libraries
+library(caret)
+library(rpart)
+
+# Set random seed for reproducibility
+set.seed(123)
+
+# Performing 5-fold cross-validation with informative messages
+tranCon <- trainControl(method = "cv", number = 5, verboseIter = TRUE)
+tuneGrid <- expand.grid(.mtry = c(2, 4, 6))
+
+# Train the random forest model using caret
+model3 <- train(
+Sales ~ .,
+data = data,
+method = "rf",
+trControl = tranCon,
+tuneGrid = tuneGrid
+)
+```
+```{r}
+# Print the model results
+print(model3)
+
+```
+```{r}
+#Extract and display the best mtry value
+BestMtryValue <- model3$bestTune$mtry
+cat("The mtry value which gives the best performance is", BestMtryValue, "\n")
+```
+
+*QB4. Customize the search grid by checking the model’s performance for mtry values of 2, 3 and 5 using 3 repeats of 5-fold cross validation.*
+```{r}
+set.seed(123)
+
+#Data Partitioning
+index <- createDataPartition(data$Sales, p = 0.8, list = FALSE)
+TrD <- data[index, ]
+TsD <- data[-index, ]
+
+#Cross-Validation Setup
+ctrl <- trainControl(
+method = "repeatedcv",
+number = 5,
+repeats = 3
+)
+
+#mtry Grid Creation
+mtry_grid <- expand.grid(mtry = c(2, 3, 5))
+
+#Model Training
+model4 <- train(
+  Sales ~ .,
+data = TrD,
+method = "rf",
+trControl = ctrl,
+tuneGrid = mtry_grid
+)
+
+#Model Output
+print(model4)
+```
+
