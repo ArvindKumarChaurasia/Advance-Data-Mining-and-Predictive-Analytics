@@ -1,0 +1,93 @@
+---
+title: "Arvind Chaurasia ADM&PA Assignment 3"
+output: html_document
+date: "2024-05-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+suppressMessages({
+  library(ISLR)
+  library(dplyr)
+  library(glmnet)
+  library(caret)
+})
+```
+
+
+
+```{r}
+Carseats_Filtered <- Carseats %>% select("Sales", "Price", "Advertising","Population","Age","Income","Education")
+```
+
+
+
+```{r}
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+set.seed(123)
+
+svm_linear_model <- train(Sales ~ ., data = Carseats_Filtered, method = "svmLinear",
+                          trControl = trctrl,
+                          preProcess = c("center", "scale"))
+svm_linear_model
+
+```
+
+Q2
+```{r}
+c_values <- c(0.1, 0.5, 1, 10)
+
+svm_linear_grid <- expand.grid(C = c_values)
+
+trctrl <- trainControl(method = "repeatedcv", number = 5, repeats = 2)
+
+set.seed(2018)
+
+svm_linear_model <- train(Sales ~ ., data = Carseats_Filtered, method = "svmLinear",
+trControl = trctrl,
+preProcess = c("center", "scale"),
+tuneGrid = svm_linear_grid)
+
+cat(" C is", svm_linear_model$bestTune$C, "\n")
+```
+
+Q3
+```{r}
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+set.seed(2018)
+
+nn_model <- train(Sales ~ ., 
+                  data = Carseats_Filtered, 
+                  method = "nnet",
+                  trControl = trctrl,
+                  preProcess = c("center", "scale"))
+
+print(nn_model)
+
+rsquared <- nn_model$results$Rsquared[which.max(nn_model$results$Rsquared)]
+rsquared
+```
+
+Q4
+```{r}
+new_data <- data.frame(
+  Sales =9,
+  Price = 6.54,
+  Population = 124,
+  Advertising = 0,
+  Age = 76,
+  Income = 110,
+  Education = 10
+)
+
+estimated_sales <- predict(nn_model, newdata = new_data)
+estimated_sales
+
+```
+
