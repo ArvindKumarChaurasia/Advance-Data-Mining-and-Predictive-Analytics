@@ -1,0 +1,129 @@
+---
+title: "Arvind Chaurasia ADM&PA Assignment 1"
+output: html_document
+date: "2024-03-23"
+---
+**Part B**
+
+Let’s start by loading these libraries:
+```{r}
+suppressPackageStartupMessages({
+
+library(ISLR)
+
+library(dplyr)
+
+#install.packages('glmnet')
+library(glmnet)
+
+library(caret)
+  
+})
+```
+
+
+We only need the following attributes: "Sales", "Price", "Advertising", "Population", "Age", "Income" and "Education". 
+
+```{r}
+#As provided in the question, here we are selecting relevant attributes.
+Carseats_Filtered <- Carseats %>% select("Sales", "Price", "Advertising","Population","Age","Income","Education")
+```
+
+**QB1. Build a Lasso regression model to predict Sales based on all other attributes ("Price", "Advertising", "Population", "Age", "Income" and "Education"). What is the best value of lambda for such a lasso model? (Hint1: Do not forget to scale your input attributes – you can use the caret preprocess() function to scale and center the data. Hint 2: glment library expect the input attributes to be in the matrix format. You can use the as.matrix() function for converting)**
+
+Let's first start with knowing about our dataset. We will check for its dimesion, structure and summary of the data. 
+
+```{r}
+dim(Carseats_Filtered)
+head(Carseats_Filtered)
+str(Carseats_Filtered)
+summary(Carseats_Filtered)
+```
+
+Let's scale our input attributes – we will use the caret preProcess() function to scale and center the data.
+
+```{r}
+dataSC <- preProcess(Carseats_Filtered, method = c("center", "scale"))
+car_data_sacled <- predict(dataSC, Carseats_Filtered)
+```
+
+Now, we are preparing our data for Lasso Model. Converting input attributes to be in the matrix format.
+
+```{r}
+X <- as.matrix(select(car_data_sacled, -Sales))
+y <- car_data_sacled$Sales
+```
+
+Let's build the model and evaluating it with cross validation. 
+```{r}
+model1 <- cv.glmnet(X, y, alpha = 1)
+print(model1)
+plot(model1)
+```
+
+Now we will find the optimal lamda value for our model. 
+```{r}
+opt_lamda <- model1$lambda.min
+cat("Optimal/ Best lambda value is ", opt_lamda, "\n")
+```
+
+Please note that lamda acts as a tuning parameter that controls the trade-off between model complexity and generalizability.
+
+Using the best lamda we will build our model. 
+```{r}
+final_model <- glmnet(X, y, alpha = 1, lambda = opt_lamda)
+coef(final_model)
+```
+___
+
+*QB2. What is the coefficient for the price (normalized) attribute in the best model (i.e. model
+with the optimal lambda)?*
+
+We will find the coefficient for the price (normalized) attribute in the best model. 
+```{r}
+price_wt <- coef(final_model)["Price",]
+print(price_wt)
+```
+The coefficient for the price (normalized) attribute in the best model is -0.47. There is a negative correlation between price and sale. 
+
+___
+
+*QB3. How many attributes remain in the model if lambda is set to 0.01? How that number changes if lambda is increased to 0.1? Do you expect more variables to stay in the model (i.e., to have non-zero coefficients) as we increase lambda?*
+
+When we have the value of lamda as 0.01
+```{r}
+lambda <- 0.01
+model2 <- glmnet(X, y, alpha = 1, lambda = lambda)
+rem_coeff_1 <- sum(coef(model2) != 0)
+print(rem_coeff_1)
+```
+The total number of attributes remain in the model is 7 when we have the value of lamda as 0.01. 
+
+
+When we have the value of lamda as 0.1
+```{r}
+lambda <- 0.1
+model3 <- glmnet(X, y, alpha = 1, lambda = lambda)
+rem_coeff_2 <- sum(coef(model3) != 0)
+print(rem_coeff_2)
+```
+When lamda is increased to 0.1, the total number of attributes in the model is 5. 
+
+Based on the trend we just saw we will have fewer variables in the model as we increase the lamda value. Lasso regression penalizes the model for having large coefficients. A higher lambda value translates to a stronger penalty.
+
+___
+
+*QB4. Build an elastic-net model with alpha set to 0.6. What is the best value of lambda for such a model?*
+
+Building and finding the optimal lambda value for an Elastic-Net regression model.
+```{r}
+val_lam <- seq(0.001, 1, by = 0.01)
+
+model4 <- cv.glmnet(X, y, alpha = 0.6, lambda = val_lam)
+plot(model4)
+
+opt_lam <- model4$lambda.min
+
+print(opt_lam)
+```
+The best value for lamda is 0.001. Please note that lamda acts as a tuning parameter that controls the trade-off between model complexity and generalizability.
